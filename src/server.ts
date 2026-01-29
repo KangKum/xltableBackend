@@ -1,0 +1,75 @@
+import express from "express";
+import cors from "cors";
+import { MongoClient } from "mongodb";
+import dotenv from "dotenv";
+import authRoutes from "./routes/authRoutes";
+import scheduleRoutes from "./routes/scheduleRoutes";
+import boardRoutes from "./routes/boardRoutes";
+import { setDatabase } from "./controllers/authController";
+import { setScheduleDatabase } from "./controllers/scheduleController";
+import { setBoardDatabase } from "./controllers/boardController";
+import { createIndexes, createAdminAccount } from "./utils/initDatabase";
+
+dotenv.config();
+
+const uri = process.env.MONGODB_URI;
+if (!uri) {
+  throw new Error("MONGODB_URI가 설정되어 있지 않습니다. .env를 확인하세요.");
+}
+
+// Connection Pooling 설정 (성능 최적화)
+const client = new MongoClient(uri, {
+  maxPoolSize: 500,        // 최대 연결 수 (기본값: 100)
+  minPoolSize: 50,         // 최소 유휴 연결 수
+  maxIdleTimeMS: 30000,    // 유휴 연결 타임아웃 (30초)
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+});
+const app = express();
+
+app.use(cors());
+app.use(express.json()); // JSON 파싱
+
+let xltableCollection;
+
+async function startServer() {
+  try {
+    await client.connect();
+    console.log("MongoDB 연결 성공");
+
+    const db = client.db("timemanager");
+    xltableCollection = db.collection("xltable");
+
+    // MongoDB 인덱스 초기화 (성능 최적화)
+    await createIndexes(db);
+
+    // 기본 관리자 계정 생성
+    await createAdminAccount(db);
+
+    // authController에 database 설정
+    setDatabase(db);
+
+    // scheduleController에 database 설정
+    setScheduleDatabase(db);
+
+    // boardController에 database 설정
+    setBoardDatabase(db);
+
+    // Auth 라우트 연결
+    app.use("/api/auth", authRoutes);
+
+    // Schedule 라우트 연결
+    app.use("/api/schedules", scheduleRoutes);
+
+    // Board 라우트 연결
+    app.use("/api/board", boardRoutes);
+
+    app.listen(4009, () => {
+      console.log("🚀 Server running on http://localhost:4009");
+    });
+  } catch (err) {
+    console.error("MongoDB 연결 실패:", err);
+  }
+}
+
+startServer();
