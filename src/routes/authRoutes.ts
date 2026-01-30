@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { register, login, resetPassword, changePassword } from "../controllers/authController";
+import { register, login, resetPassword, changePassword, verifyTeacher, saveRegisteredTeachers, getRegisteredTeachers } from "../controllers/authController";
+import { authenticate } from "../middleware/authMiddleware";
 
 const router = Router();
 
@@ -14,5 +15,14 @@ router.post("/reset-password", resetPassword);
 
 // POST /api/auth/change-password - 비밀번호 변경 (로그인한 사용자)
 router.post("/change-password", changePassword);
+
+// POST /api/auth/verify-teacher - 선생님 아이디 검증 (admin용)
+router.post("/verify-teacher", authenticate, verifyTeacher);
+
+// POST /api/auth/registered-teachers - 등록된 선생님 저장 (admin용)
+router.post("/registered-teachers", authenticate, saveRegisteredTeachers);
+
+// GET /api/auth/registered-teachers - 등록된 선생님 조회 (admin용)
+router.get("/registered-teachers", authenticate, getRegisteredTeachers);
 
 export default router;

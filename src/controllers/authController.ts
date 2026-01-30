@@ -198,3 +198,104 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
     res.status(500).json({ success: false, message: "서버 오류가 발생했습니다." });
   }
 };
+
+// 선생님 아이디 검증 (role이 "user"인 계정인지 확인)
+export const verifyTeacher = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { teacherId } = req.body;
+
+    // 필수 필드 검증
+    if (!teacherId) {
+      res.status(400).json({ success: false, verified: false, message: "선생님 아이디를 입력해주세요." });
+      return;
+    }
+
+    // 요청한 사용자가 admin인지 확인
+    if (req.role !== "admin") {
+      res.status(403).json({ success: false, verified: false, message: "권한이 없습니다." });
+      return;
+    }
+
+    // 선생님 계정 조회
+    const usersCollection = db.collection<IUser>("users");
+    const teacher = await usersCollection.findOne({ userId: teacherId });
+
+    if (!teacher) {
+      res.status(404).json({ success: false, verified: false, message: "존재하지 않는 아이디입니다." });
+      return;
+    }
+
+    // role이 "user"인지 확인 (선생님은 user role)
+    if (teacher.role !== "user") {
+      res.status(400).json({ success: false, verified: false, message: "선생님 계정이 아닙니다." });
+      return;
+    }
+
+    res.status(200).json({ success: true, verified: true, message: "인증되었습니다." });
+  } catch (error) {
+    console.error("선생님 검증 오류:", error);
+    res.status(500).json({ success: false, verified: false, message: "서버 오류가 발생했습니다." });
+  }
+};
+
+// 등록된 선생님 목록 저장
+export const saveRegisteredTeachers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { teachers } = req.body;
+    const adminUserId = req.userId;
+
+    // 요청한 사용자가 admin인지 확인
+    if (req.role !== "admin") {
+      res.status(403).json({ success: false, message: "권한이 없습니다." });
+      return;
+    }
+
+    // teachers가 배열인지 확인
+    if (!Array.isArray(teachers)) {
+      res.status(400).json({ success: false, message: "잘못된 요청 형식입니다." });
+      return;
+    }
+
+    // admin 계정에 registeredTeachers 업데이트
+    const usersCollection = db.collection<IUser>("users");
+    await usersCollection.updateOne(
+      { userId: adminUserId },
+      { $set: { registeredTeachers: teachers } }
+    );
+
+    res.status(200).json({ success: true, message: "저장되었습니다." });
+  } catch (error) {
+    console.error("선생님 목록 저장 오류:", error);
+    res.status(500).json({ success: false, message: "서버 오류가 발생했습니다." });
+  }
+};
+
+// 등록된 선생님 목록 조회
+export const getRegisteredTeachers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const adminUserId = req.userId;
+
+    // 요청한 사용자가 admin인지 확인
+    if (req.role !== "admin") {
+      res.status(403).json({ success: false, message: "권한이 없습니다." });
+      return;
+    }
+
+    // admin 계정에서 registeredTeachers 조회
+    const usersCollection = db.collection<IUser>("users");
+    const admin = await usersCollection.findOne({ userId: adminUserId });
+
+    if (!admin) {
+      res.status(404).json({ success: false, message: "사용자를 찾을 수 없습니다." });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      teachers: admin.registeredTeachers || [],
+    });
+  } catch (error) {
+    console.error("선생님 목록 조회 오류:", error);
+    res.status(500).json({ success: false, message: "서버 오류가 발생했습니다." });
+  }
+};
