@@ -24,16 +24,16 @@ export const getAllSchedules = async (req: Request, res: Response): Promise<void
     let schedules;
 
     if (role === "admin") {
-      // 원장: 본인이 생성한 모든 시트 조회
+      // 원장: 본인이 생성한 모든 시트 조회 (order 순으로 정렬)
       schedules = await schedulesCollection
         .find({ userId })
-        .sort({ createdAt: 1 })
+        .sort({ order: 1, createdAt: 1 })
         .toArray();
     } else {
-      // 교사: teacherUserIds에 본인 userId가 포함된 시트만 조회
+      // 교사: teacherUserIds에 본인 userId가 포함된 시트만 조회 (order 순으로 정렬)
       schedules = await schedulesCollection
         .find({ teacherUserIds: userId })
-        .sort({ createdAt: 1 })
+        .sort({ order: 1, createdAt: 1 })
         .toArray();
     }
 
@@ -99,6 +99,16 @@ export const createSchedule = async (req: Request, res: Response): Promise<void>
     const numTeachers = parseInt(settings.numOfTeachers);
     const teacherUserIds = Array(numTeachers).fill("");
 
+    // 현재 사용자의 시트 중 가장 큰 order 값 찾기
+    const lastSchedule = await schedulesCollection
+      .find({ userId })
+      .sort({ order: -1 })
+      .limit(1)
+      .toArray();
+    const nextOrder = lastSchedule.length > 0 && lastSchedule[0].order !== undefined
+      ? lastSchedule[0].order + 1
+      : 0;
+
     // 새 스케줄 문서 생성
     const newSchedule: IScheduleDocument = {
       userId,
@@ -115,6 +125,7 @@ export const createSchedule = async (req: Request, res: Response): Promise<void>
       cellTexts: data.cellTexts || {},
       mergedBlocks: data.mergedBlocks || [],
       viewMode: data.viewMode || "byDay",
+      order: nextOrder,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -166,7 +177,7 @@ export const updateSchedule = async (req: Request, res: Response): Promise<void>
     }
 
     // 업데이트할 필드
-    const updateFields = {
+    const updateFields: Record<string, any> = {
       title: settings.title,
       numOfTeachers: settings.numOfTeachers,
       selectedDays: settings.selectedDays,
@@ -181,6 +192,11 @@ export const updateSchedule = async (req: Request, res: Response): Promise<void>
       viewMode: data.viewMode || "byDay",
       updatedAt: new Date(),
     };
+
+    // order가 전달된 경우에만 업데이트
+    if (typeof settings.order === "number") {
+      updateFields.order = settings.order;
+    }
 
     await schedulesCollection.updateOne(
       { userId, sheetName },

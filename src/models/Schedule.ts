@@ -40,6 +40,7 @@ export interface IScheduleDocument {
   viewMode: "byDay" | "byTeacher";
 
   // 메타데이터
+  order?: number;              // 시트 순서 (0부터 시작)
   createdAt: Date;
   updatedAt: Date;
 }
