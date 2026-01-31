@@ -32,6 +32,7 @@ export interface IScheduleDocument {
   interval: string;
   teacherNames: string[];
   teacherUserIds: string[];    // 교사 아이디 배열 (teacherNames와 인덱스 매칭)
+  dayDates?: Record<string, string>;  // 요일별 날짜 (예: {"월": "1/26", "화": "1/27"})
 
   // ISheetData 필드
   cellTexts: Record<string, ICellData>;
