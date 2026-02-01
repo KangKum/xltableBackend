@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, login, resetPassword, changePassword, verifyTeacher, saveRegisteredTeachers, getRegisteredTeachers, deleteAccount } from "../controllers/authController";
+import { register, login, resetPassword, changePassword, verifyTeacher, saveRegisteredTeachers, getRegisteredTeachers, deleteAccount, getSuperadminStats } from "../controllers/authController";
 import { authenticate } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -27,5 +27,8 @@ router.get("/registered-teachers", authenticate, getRegisteredTeachers);
 
 // DELETE /api/auth/delete-account - 회원 탈퇴
 router.delete("/delete-account", authenticate, deleteAccount);
+
+// GET /api/auth/superadmin/stats - 슈퍼관리자용 통계 조회
+router.get("/superadmin/stats", authenticate, getSuperadminStats);
 
 export default router;

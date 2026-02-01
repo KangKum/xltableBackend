@@ -71,6 +71,22 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // 슈퍼관리자 로그인 체크 (env에서 설정)
+    const superadminId = process.env.SUPERADMIN_ID;
+    const superadminPw = process.env.SUPERADMIN_PW;
+    if (superadminId && superadminPw && userId === superadminId && password === superadminPw) {
+      const token = generateToken(userId, "superadmin");
+      res.status(200).json({
+        success: true,
+        message: "로그인 성공",
+        token,
+        userId,
+        email: "",
+        role: "superadmin",
+      });
+      return;
+    }
+
     // 사용자 조회
     const usersCollection = db.collection<IUser>("users");
     const user = await usersCollection.findOne({ userId });
@@ -339,6 +355,64 @@ export const deleteAccount = async (req: Request, res: Response): Promise<void> 
     res.status(200).json({ success: true, message: "회원 탈퇴가 완료되었습니다." });
   } catch (error) {
     console.error("회원 탈퇴 오류:", error);
+    res.status(500).json({ success: false, message: "서버 오류가 발생했습니다." });
+  }
+};
+
+// 슈퍼관리자용 통계 조회
+export const getSuperadminStats = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // 슈퍼관리자 권한 확인
+    if (req.role !== "superadmin") {
+      res.status(403).json({ success: false, message: "슈퍼관리자 권한이 필요합니다." });
+      return;
+    }
+
+    const usersCollection = db.collection<IUser>("users");
+    const schedulesCollection = db.collection("schedules");
+
+    // 원장님 목록 (role: admin)
+    const admins = await usersCollection
+      .find({ role: "admin" })
+      .project({ userId: 1, email: 1, createdAt: 1, _id: 0 })
+      .toArray();
+
+    // 선생님 목록 (role: user)
+    const teachers = await usersCollection
+      .find({ role: "user" })
+      .project({ userId: 1, email: 1, createdAt: 1, _id: 0 })
+      .toArray();
+
+    // 원장님별 마지막 수정시간 조회
+    const adminLastUpdates = await schedulesCollection.aggregate([
+      {
+        $group: {
+          _id: "$userId",
+          lastUpdated: { $max: "$updatedAt" },
+          sheetCount: { $sum: 1 }
+        }
+      }
+    ]).toArray();
+
+    // 원장님 정보와 마지막 수정시간 병합
+    const adminsWithLastUpdate = admins.map(admin => {
+      const updateInfo = adminLastUpdates.find(u => u._id === admin.userId);
+      return {
+        ...admin,
+        lastUpdated: updateInfo?.lastUpdated || null,
+        sheetCount: updateInfo?.sheetCount || 0
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      admins: adminsWithLastUpdate,
+      teachers,
+      totalAdmins: admins.length,
+      totalTeachers: teachers.length
+    });
+  } catch (error) {
+    console.error("슈퍼관리자 통계 조회 오류:", error);
     res.status(500).json({ success: false, message: "서버 오류가 발생했습니다." });
   }
 };
