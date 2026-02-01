@@ -72,8 +72,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // 슈퍼관리자 로그인 체크 (env에서 설정)
-    const superadminId = process.env.SUPERADMIN_ID;
-    const superadminPw = process.env.SUPERADMIN_PW;
+    const superadminId = process.env.ADMIN_USER_ID;
+    const superadminPw = process.env.ADMIN_PASSWORD;
     if (superadminId && superadminPw && userId === superadminId && password === superadminPw) {
       const token = generateToken(userId, "superadmin");
       res.status(200).json({
