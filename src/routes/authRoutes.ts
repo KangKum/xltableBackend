@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, login, resetPassword, changePassword, verifyTeacher, saveRegisteredTeachers, getRegisteredTeachers, deleteAccount, getSuperadminStats } from "../controllers/authController";
+import { register, login, resetPassword, changePassword, verifyTeacher, saveRegisteredTeachers, getRegisteredTeachers, deleteAccount, getSuperadminStats, validateToken, createAdmin } from "../controllers/authController";
 import { authenticate } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -30,5 +30,11 @@ router.delete("/delete-account", authenticate, deleteAccount);
 
 // GET /api/auth/superadmin/stats - 슈퍼관리자용 통계 조회
 router.get("/superadmin/stats", authenticate, getSuperadminStats);
+
+// GET /api/auth/validate - 토큰 유효성 검증
+router.get("/validate", authenticate, validateToken);
+
+// POST /api/auth/superadmin/create-admin - 원장님 계정 생성 (슈퍼관리자 전용)
+router.post("/superadmin/create-admin", authenticate, createAdmin);
 
 export default router;

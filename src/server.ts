@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes";
@@ -11,6 +12,48 @@ import { setBoardDatabase } from "./controllers/boardController";
 import { createIndexes, createAdminAccount } from "./utils/initDatabase";
 
 dotenv.config();
+
+// 허용된 도메인 목록
+const allowedOrigins = [
+  "https://timemate.co.kr",
+  "https://www.timemate.co.kr",
+  "http://localhost:5177",  // 개발 서버
+];
+
+// CORS 설정
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // origin이 없는 경우 (같은 출처 요청 또는 서버 간 통신)
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS 정책에 의해 차단되었습니다."));
+    }
+  },
+  credentials: true,
+};
+
+// 전역 Rate Limiting (분당 100회)
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1분
+  max: 100, // 최대 100회
+  message: { success: false, message: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// 로그인/회원가입 Rate Limiting (분당 10회)
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1분
+  max: 10, // 최대 10회
+  message: { success: false, message: "로그인 시도가 너무 많습니다. 1분 후 다시 시도해주세요." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const uri = process.env.MONGODB_URI;
 if (!uri) {
@@ -27,8 +70,9 @@ const client = new MongoClient(uri, {
 });
 const app = express();
 
-app.use(cors());
-app.use(express.json()); // JSON 파싱
+app.use(cors(corsOptions));
+app.use(express.json({ limit: "10mb" })); // JSON 파싱 (크기 제한)
+app.use(globalLimiter); // 전역 Rate Limiting
 
 let xltableCollection;
 
@@ -55,7 +99,10 @@ async function startServer() {
     // boardController에 database 설정
     setBoardDatabase(db);
 
-    // Auth 라우트 연결
+    // Auth 라우트 연결 (로그인/회원가입에 Rate Limiting 적용)
+    app.use("/api/auth/login", authLimiter);
+    app.use("/api/auth/register", authLimiter);
+    app.use("/api/auth/reset-password", authLimiter);
     app.use("/api/auth", authRoutes);
 
     // Schedule 라우트 연결
