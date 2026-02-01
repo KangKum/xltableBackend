@@ -414,6 +414,27 @@ export const deleteAccount = async (req: Request, res: Response): Promise<void> 
     // 댓글 삭제
     await commentsCollection.deleteMany({ authorId: userId });
 
+    // 선생님(user)인 경우
+    if (user.role === "user") {
+      // 모든 원장님의 registeredTeachers에서 제거
+      await usersCollection.updateMany(
+        { role: "admin", registeredTeachers: userId },
+        { $pull: { registeredTeachers: userId } as any }
+      );
+
+      // 모든 시간표의 teacherUserIds에서 해당 선생님 연결 해제 (빈 문자열로 변경)
+      const schedulesToUpdate = await schedulesCollection.find({ teacherUserIds: userId }).toArray();
+      for (const schedule of schedulesToUpdate) {
+        const updatedTeacherUserIds = schedule.teacherUserIds.map((id: string) =>
+          id === userId ? "" : id
+        );
+        await schedulesCollection.updateOne(
+          { _id: schedule._id },
+          { $set: { teacherUserIds: updatedTeacherUserIds } }
+        );
+      }
+    }
+
     // 사용자 삭제
     await usersCollection.deleteOne({ userId });
 
