@@ -400,6 +400,20 @@ export const deleteAccount = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // 관련 데이터 삭제
+    const schedulesCollection = db.collection("schedules");
+    const postsCollection = db.collection("posts");
+    const commentsCollection = db.collection("comments");
+
+    // 시간표 삭제 (원장님인 경우)
+    await schedulesCollection.deleteMany({ userId });
+
+    // 게시글 삭제
+    await postsCollection.deleteMany({ authorId: userId });
+
+    // 댓글 삭제
+    await commentsCollection.deleteMany({ authorId: userId });
+
     // 사용자 삭제
     await usersCollection.deleteOne({ userId });
 
