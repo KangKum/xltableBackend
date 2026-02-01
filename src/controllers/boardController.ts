@@ -287,6 +287,10 @@ export const deletePost = async (req: Request, res: Response): Promise<void> => 
     // 게시글 삭제
     await postsCollection.deleteOne({ _id: new ObjectId(postId) } as any);
 
+    // 해당 게시글의 댓글도 모두 삭제
+    const commentsCollection = db.collection("comments");
+    await commentsCollection.deleteMany({ postId });
+
     res.status(200).json({
       success: true,
       message: "게시글이 삭제되었습니다.",
